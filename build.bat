@@ -23,7 +23,8 @@ if not exist "dist" mkdir "dist"
   src\MyQuoteCard\Program.cs ^
   src\MyQuoteCard\Storage.cs ^
   src\MyQuoteCard\Forms.cs ^
-  src\MyQuoteCard\AssemblyInfo.cs
+  src\MyQuoteCard\AssemblyInfo.cs ^
+  src\Shared\AppVersion.cs
 
 if errorlevel 1 exit /b %errorlevel%
 echo Built: dist\MyQuoteCard.exe
@@ -36,7 +37,9 @@ echo Built: dist\MyQuoteCard.exe
   /reference:System.Core.dll ^
   /reference:System.Drawing.dll ^
   /reference:System.Windows.Forms.dll ^
-  src\Launcher\Launcher.cs
+  src\Launcher\Launcher.cs ^
+  src\Launcher\AssemblyInfo.cs ^
+  src\Shared\AppVersion.cs
 
 if errorlevel 1 exit /b %errorlevel%
 echo Built: dist\QuoteCardLauncher.exe

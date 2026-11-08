@@ -12,6 +12,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using Microsoft.Win32;
+using MyQuoteCard.Shared;
 
 namespace MyQuoteCardLauncher
 {
@@ -191,7 +192,7 @@ namespace MyQuoteCardLauncher
 
         public LauncherForm()
         {
-            Text = "自言卡 · 启动器";
+            Text = "自言卡 · 启动器 · " + AppVersion.Tag;
             Font = new Font("Microsoft YaHei UI", 9.5f, FontStyle.Regular);
             BackColor = Color.FromArgb(28, 28, 28);
             ForeColor = Color.White;

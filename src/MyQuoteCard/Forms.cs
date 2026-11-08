@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using MyQuoteCard.Shared;
 
 namespace MyQuoteCard
 {
@@ -574,6 +575,24 @@ namespace MyQuoteCard
             };
             menu.Items.Add(helpItem);
 
+            // 关于：一眼确认当前跑的是哪一个版本，省得靠记忆和印象对号
+            ToolStripMenuItem aboutItem = CreateMenuItem("About");
+            aboutItem.Click += delegate
+            {
+                MessageBox.Show(T(
+                    "版本：" + AppVersion.Tag + "（" + AppVersion.Number + "）\n\n" +
+                    "基于 oocreator/MyQuoteCard 的二次定制版本，遵循原项目 MIT License。\n" +
+                    "仅个人自用，非官方版本。\n\n" +
+                    "数据保存在 %LOCALAPPDATA%\\MyQuoteCard\\",
+                    "Version: " + AppVersion.Tag + " (" + AppVersion.Number + ")\n\n" +
+                    "A personal customized build based on oocreator/MyQuoteCard, " +
+                    "following the original MIT License.\nFor personal use only; not an official release.\n\n" +
+                    "Data is stored in %LOCALAPPDATA%\\MyQuoteCard\\"),
+                    T("自言卡 · 关于", "MyQuoteCard · About"),
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+            menu.Items.Add(aboutItem);
+
             ToolStripMenuItem exitItem = CreateMenuItem("Exit");
             exitItem.Click += delegate { Close(); };
             menu.Items.Add(exitItem);
@@ -674,6 +693,7 @@ namespace MyQuoteCard
                         menuItem.Checked = UiText.IsEnglish(_state);
                         break;
                     case "Help": menuItem.Text = T("使用方法", "Help"); break;
+                    case "About": menuItem.Text = T("关于（版本 " + AppVersion.Tag + "）", "About (" + AppVersion.Tag + ")"); break;
                     case "Exit": menuItem.Text = T("退出", "Exit"); break;
                 }
                 if (menuItem.DropDownItems.Count > 0) ApplyMenuLanguage(menuItem.DropDownItems);
