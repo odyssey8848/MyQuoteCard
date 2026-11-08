@@ -14,7 +14,7 @@ if not exist "dist" mkdir "dist"
 
 "%CSC%" /nologo /target:winexe /optimize+ /platform:anycpu ^
   /win32manifest:src\MyQuoteCard\app.manifest ^
-  /win32icon:src\MyQuoteCard\card.ico ^
+  /win32icon:src\MyQuoteCard\card-orange.ico ^
   /out:dist\MyQuoteCard.exe ^
   /reference:System.dll ^
   /reference:System.Core.dll ^
@@ -27,4 +27,17 @@ if not exist "dist" mkdir "dist"
 
 if errorlevel 1 exit /b %errorlevel%
 echo Built: dist\MyQuoteCard.exe
+
+"%CSC%" /nologo /target:winexe /optimize+ /platform:anycpu ^
+  /win32manifest:src\MyQuoteCard\app.manifest ^
+  /win32icon:src\Launcher\launcher.ico ^
+  /out:dist\QuoteCardLauncher.exe ^
+  /reference:System.dll ^
+  /reference:System.Core.dll ^
+  /reference:System.Drawing.dll ^
+  /reference:System.Windows.Forms.dll ^
+  src\Launcher\Launcher.cs
+
+if errorlevel 1 exit /b %errorlevel%
+echo Built: dist\QuoteCardLauncher.exe
 

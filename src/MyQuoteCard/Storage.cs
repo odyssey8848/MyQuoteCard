@@ -33,14 +33,17 @@ namespace MyQuoteCard
         public int Y = int.MinValue;
         public int CardWidth = 460;
         public int CardHeight = 190;
-        public bool TopMost = false;
+        public bool TopMost = true;   // 新建卡片默认置顶
         public int FontAdjustment = 0;
+        /// <summary>固定字号（磅）。0 表示跟随卡片大小自动适应。</summary>
+        public int ManualFontSize = 0;
         public int BackgroundColorArgb = unchecked((int)0xFFFFFFFF);
         public int TextColorArgb = unchecked((int)0xFF000000);
         public string FontName = "Microsoft YaHei UI";
         public int FontStyleValue = 0;
         public string BackgroundImagePath = "";
         public bool TransparentBackground = false;
+        public bool ClickThrough = false;
         public int TransparencyDefaultVersion = 0;
         public bool AutoFitText = true;
         public bool ParagraphMode = false;
@@ -86,12 +89,14 @@ namespace MyQuoteCard
                         case "CardHeight": if (int.TryParse(value, out number)) state.CardHeight = number; break;
                         case "TopMost": if (bool.TryParse(value, out flag)) state.TopMost = flag; break;
                         case "FontAdjustment": if (int.TryParse(value, out number)) state.FontAdjustment = number; break;
+                        case "ManualFontSize": if (int.TryParse(value, out number)) state.ManualFontSize = number; break;
                         case "BackgroundColorArgb": if (int.TryParse(value, out number)) state.BackgroundColorArgb = number; break;
                         case "TextColorArgb": if (int.TryParse(value, out number)) state.TextColorArgb = number; break;
                         case "FontName": state.FontName = Decode(value); break;
                         case "FontStyleValue": if (int.TryParse(value, out number)) state.FontStyleValue = number; break;
                         case "BackgroundImagePath": state.BackgroundImagePath = Decode(value); break;
                         case "TransparentBackground": if (bool.TryParse(value, out flag)) state.TransparentBackground = flag; break;
+                        case "ClickThrough": if (bool.TryParse(value, out flag)) state.ClickThrough = flag; break;
                         case "TransparencyDefaultVersion": if (int.TryParse(value, out number)) state.TransparencyDefaultVersion = number; break;
                         case "AutoFitText": if (bool.TryParse(value, out flag)) state.AutoFitText = flag; break;
                         case "ParagraphMode": if (bool.TryParse(value, out flag)) state.ParagraphMode = flag; break;
@@ -108,9 +113,11 @@ namespace MyQuoteCard
                 // A damaged settings file should never prevent the card from opening.
             }
 
-            state.CardWidth = Math.Max(340, Math.Min(700, state.CardWidth));
-            state.CardHeight = Math.Max(140, Math.Min(320, state.CardHeight));
-            state.FontAdjustment = Math.Max(-24, Math.Min(8, state.FontAdjustment));
+            // 下限跟着“最小字号 + 边距”走，这里只留系统安全地板，不再把用户拖小的尺寸顶回去
+            state.CardWidth = Math.Max(40, Math.Min(1600, state.CardWidth));
+            state.CardHeight = Math.Max(30, Math.Min(1200, state.CardHeight));
+            state.FontAdjustment = Math.Max(-24, Math.Min(80, state.FontAdjustment));
+            state.ManualFontSize = Math.Max(0, Math.Min(400, state.ManualFontSize));
             if (string.IsNullOrWhiteSpace(state.FontName)) state.FontName = "Microsoft YaHei UI";
             if (!string.Equals(state.UiLanguage, "en", StringComparison.OrdinalIgnoreCase))
                 state.UiLanguage = "zh-CN";
@@ -178,12 +185,14 @@ namespace MyQuoteCard
                 "CardHeight=" + CardHeight.ToString(CultureInfo.InvariantCulture),
                 "TopMost=" + TopMost.ToString(),
                 "FontAdjustment=" + FontAdjustment.ToString(CultureInfo.InvariantCulture),
+                "ManualFontSize=" + ManualFontSize.ToString(CultureInfo.InvariantCulture),
                 "BackgroundColorArgb=" + BackgroundColorArgb.ToString(CultureInfo.InvariantCulture),
                 "TextColorArgb=" + TextColorArgb.ToString(CultureInfo.InvariantCulture),
                 "FontName=" + Encode(FontName),
                 "FontStyleValue=" + FontStyleValue.ToString(CultureInfo.InvariantCulture),
                 "BackgroundImagePath=" + Encode(BackgroundImagePath),
                 "TransparentBackground=" + TransparentBackground.ToString(),
+                "ClickThrough=" + ClickThrough.ToString(),
                 "TransparencyDefaultVersion=" + TransparencyDefaultVersion.ToString(CultureInfo.InvariantCulture),
                 "AutoFitText=" + AutoFitText.ToString(),
                 "ParagraphMode=" + ParagraphMode.ToString(),
@@ -371,15 +380,16 @@ namespace MyQuoteCard
         public string EnsureToday()
         {
             List<string> quotes = _repository.Load();
-            string today = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            bool currentStillExists = quotes.Contains(_state.TodayQuote);
-            if (_state.TodayDate == today && currentStillExists && _state.TodayQuote.Length > 0)
+
+            // 不再按天自动轮换：只要当前这句话还在内容库里，就一直显示它。
+            // 想换内容时，右键菜单里的“切换到另一条内容”可以随时手动切换。
+            if (_state.TodayQuote.Length > 0 && quotes.Contains(_state.TodayQuote))
                 return _state.TodayQuote;
 
             string previous = _state.TodayQuote;
             _state.LastQuote = previous;
             _state.TodayQuote = Pick(quotes, previous);
-            _state.TodayDate = today;
+            _state.TodayDate = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             _state.Save();
             return _state.TodayQuote;
         }
@@ -428,29 +438,41 @@ namespace MyQuoteCard
     internal static class StartupManager
     {
         private const string KeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-        private const string ValueName = "MyQuoteCard";
 
-        public static bool IsEnabled()
+        /// <summary>第 1 张沿用原来的值名，其余每张一个独立值名，多开时互不覆盖。</summary>
+        internal static string ValueNameFor(int instanceIndex)
+        {
+            return instanceIndex <= 1 ? "MyQuoteCard" : "MyQuoteCard" + instanceIndex.ToString();
+        }
+
+        internal static string CommandLineFor(int instanceIndex)
+        {
+            string exe = "\"" + System.Windows.Forms.Application.ExecutablePath + "\"";
+            return instanceIndex <= 1 ? exe + " --startup" : exe + " --instance=" + instanceIndex.ToString();
+        }
+
+        public static bool IsEnabled(int instanceIndex)
         {
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey(KeyPath, false))
             {
                 if (key == null) return false;
-                string value = key.GetValue(ValueName) as string;
+                string value = key.GetValue(ValueNameFor(instanceIndex)) as string;
                 if (string.IsNullOrEmpty(value)) return false;
                 return value.IndexOf(System.Windows.Forms.Application.ExecutablePath,
                     StringComparison.OrdinalIgnoreCase) >= 0;
             }
         }
 
-        public static void SetEnabled(bool enabled)
+        public static void SetEnabled(int instanceIndex, bool enabled)
         {
             using (RegistryKey key = Registry.CurrentUser.CreateSubKey(KeyPath))
             {
                 if (key == null) throw new InvalidOperationException("无法打开开机启动设置。");
                 if (enabled)
-                    key.SetValue(ValueName, "\"" + System.Windows.Forms.Application.ExecutablePath + "\" --startup", RegistryValueKind.String);
+                    key.SetValue(ValueNameFor(instanceIndex), CommandLineFor(instanceIndex),
+                        RegistryValueKind.String);
                 else
-                    key.DeleteValue(ValueName, false);
+                    key.DeleteValue(ValueNameFor(instanceIndex), false);
             }
         }
     }
@@ -539,8 +561,7 @@ namespace MyQuoteCard
                         0x0002, 1000, out locateResult);
                     System.Windows.Forms.Application.DoEvents();
                     if (locateSent == IntPtr.Zero ||
-                        locateResult.ToInt32() != QuoteCardForm.LocateResponse ||
-                        !form.LocateModeActive) return 26;
+                        locateResult.ToInt32() != QuoteCardForm.LocateResponse) return 26;
                     form.Hide();
                 }
                 reloaded.UiLanguage = "en";
